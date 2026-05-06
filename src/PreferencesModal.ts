@@ -5,6 +5,7 @@
 
 import type { AuthService } from "./AuthService";
 import type { UserPreferences } from "./types";
+import { showToast } from "./toast";
 
 export interface PreferencesModalOptions {
   /** Callback when preferences are saved */
@@ -293,15 +294,16 @@ export function createPreferencesModal(
             prefs.activities = [...selectedActivities];
             await auth.getCurrentUser();
             options?.onSave?.(prefs);
+            showToast("Preferences saved", "success");
             close();
           } else {
             const errData = await response.json().catch(() => ({}));
             console.error("[PreferencesModal] Error saving preferences:", errData);
-            alert("Failed to save preferences. Please try again.");
+            showToast("Failed to save preferences", "error");
           }
         } catch (error) {
           console.error("[PreferencesModal] Error saving preferences:", error);
-          alert("Failed to save preferences. Please try again.");
+          showToast("Failed to save preferences", "error");
         } finally {
           const btn = modal.querySelector<HTMLButtonElement>(".mobius-prefs-btn-save");
           if (btn) {

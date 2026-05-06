@@ -22,6 +22,8 @@ export { createAuthModal, type AuthModalOptions, type AuthModalMode } from "./Au
 export { createPreferencesModal, PREFERENCES_MODAL_STYLES, type PreferencesModalOptions, type ActivityOption } from "./PreferencesModal";
 export { createUserMenu, USER_MENU_STYLES, type UserMenuOptions } from "./UserMenu";
 export { AUTH_STYLES } from "./styles";
+export { showToast, type ToastVariant } from "./toast";
+export { getGoogleIdToken } from "./google";
 
 import { AuthService } from "./AuthService";
 import type { IStorageAdapter } from "./storage/IStorageAdapter";

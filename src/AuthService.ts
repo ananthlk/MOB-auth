@@ -233,7 +233,7 @@ export class AuthService {
     displayName?: string,
     firstName?: string,
     tenantId?: string
-  ): Promise<{ success: boolean; error?: string; user?: UserProfile }> {
+  ): Promise<{ success: boolean; error?: string; user?: UserProfile; isNewUser?: boolean }> {
     try {
       const res = await fetch(`${this.apiBase}/auth/register`, {
         method: "POST",
@@ -253,6 +253,7 @@ export class AuthService {
         refresh_token?: string;
         expires_in?: number;
         user?: Record<string, unknown>;
+        is_new_user?: boolean;
       };
       if (!res.ok || !data.ok) {
         return { success: false, error: data.error || "Registration failed" };
@@ -262,16 +263,66 @@ export class AuthService {
         refresh_token: data.refresh_token!,
         expires_in: data.expires_in || 3600,
       });
+      const isNewUser = data.is_new_user !== false;
       if (data.user) {
         const profile = normalizeUser(data.user);
         await this.storeUserProfile(profile);
         this.emit("login", profile);
-        return { success: true, user: profile };
+        return { success: true, user: profile, isNewUser };
       }
       this.emit("login");
-      return { success: true };
+      return { success: true, isNewUser };
     } catch (e) {
       console.error("[AuthService] register:", e);
+      return { success: false, error: "Network error" };
+    }
+  }
+
+  async loginWithGoogle(
+    idToken: string,
+    tenantId?: string
+  ): Promise<{ success: boolean; error?: string; user?: UserProfile; isNewUser?: boolean }> {
+    if (!idToken) return { success: false, error: "Missing Google ID token" };
+    try {
+      const res = await fetch(`${this.apiBase}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: idToken, tenant_id: tenantId }),
+      });
+      let data: Record<string, unknown> = {};
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        /* non-JSON response */
+      }
+      const dataTyped = data as {
+        ok?: boolean;
+        error?: string;
+        access_token?: string;
+        refresh_token?: string;
+        expires_in?: number;
+        user?: Record<string, unknown>;
+        is_new_user?: boolean;
+      };
+      if (!res.ok || !dataTyped.ok) {
+        return { success: false, error: dataTyped.error || "Google sign-in failed" };
+      }
+      await this.storeTokens({
+        access_token: dataTyped.access_token!,
+        refresh_token: dataTyped.refresh_token!,
+        expires_in: dataTyped.expires_in || 3600,
+      });
+      const isNewUser = !!dataTyped.is_new_user;
+      if (dataTyped.user) {
+        const profile = normalizeUser(dataTyped.user);
+        await this.storeUserProfile(profile);
+        this.emit("login", profile);
+        return { success: true, user: profile, isNewUser };
+      }
+      this.emit("login");
+      return { success: true, isNewUser };
+    } catch (e) {
+      console.error("[AuthService] loginWithGoogle:", e);
       return { success: false, error: "Network error" };
     }
   }

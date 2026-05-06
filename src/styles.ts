@@ -106,4 +106,70 @@ export const AUTH_STYLES = `
   color: var(--mobius-accent, #3b82f6);
   font-size: var(--mobius-text-sm, 0.8125rem);
 }
+
+/* Welcome panel (post-signup) */
+.mobius-auth-welcome { text-align: center; padding: 0.5rem 0 0; }
+.mobius-auth-welcome-emoji { font-size: 2rem; margin-bottom: 0.5rem; }
+.mobius-auth-welcome-body {
+  margin: 0 0 1rem;
+  font-size: var(--mobius-text-sm, 0.8125rem);
+  color: var(--mobius-text-muted, #64748b);
+  line-height: 1.5;
+}
+
+/* Inline confirm (logout, etc.) */
+.mobius-auth-confirm {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--mobius-bg-muted, #f3f4f6);
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-radius: var(--mobius-radius-base, 8px);
+}
+.mobius-auth-confirm-text {
+  margin: 0 0 0.75rem;
+  font-size: var(--mobius-text-sm, 0.8125rem);
+}
+.mobius-auth-confirm-actions { display: flex; gap: 8px; }
+.mobius-auth-confirm-actions .mobius-auth-btn { margin: 0; flex: 1; }
+.mobius-auth-confirm-actions .mobius-auth-btn-secondary {
+  background: white;
+  color: var(--mobius-text-primary, #1a1d21);
+  border: 1px solid var(--mobius-border, #e2e8f0);
+}
+.mobius-auth-confirm-actions .mobius-auth-btn-danger {
+  background: var(--mobius-error, #dc2626);
+}
+.mobius-auth-confirm-actions .mobius-auth-btn-danger:hover {
+  background: var(--mobius-error-hover, #b91c1c);
+}
+
+/* Toasts */
+.mobius-auth-toast-host {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1100;
+  pointer-events: none;
+}
+.mobius-auth-toast {
+  pointer-events: auto;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: var(--mobius-radius-base, 8px);
+  background: var(--mobius-bg-primary, #1a1d21);
+  color: var(--mobius-bg-inverse-text, #fafbfc);
+  box-shadow: var(--mobius-shadow-lg, 0 8px 24px rgba(0,0,0,0.18));
+  font-size: var(--mobius-text-sm, 0.8125rem);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.mobius-auth-toast.open { opacity: 1; transform: translateY(0); }
+.mobius-auth-toast--success { background: #166534; color: #f0fdf4; }
+.mobius-auth-toast--error { background: #991b1b; color: #fef2f2; }
+.mobius-auth-toast--info { background: #1e3a8a; color: #eff6ff; }
 `;

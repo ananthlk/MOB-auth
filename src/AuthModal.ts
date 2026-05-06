@@ -5,6 +5,8 @@
 
 import type { AuthService } from "./AuthService";
 import type { UserProfile } from "./types";
+import { getGoogleIdToken } from "./google";
+import { showToast } from "./toast";
 
 function escapeHtml(s: string): string {
   const div = document.createElement("div");
@@ -19,13 +21,17 @@ export interface AuthModalOptions {
   showOAuth?: boolean;
   /** Optional: demo email hint (e.g. sarah.chen@demo.clinic or admin for admin@demo.clinic) */
   demoEmail?: string;
+  /** Optional: Google OAuth Web Client ID. When set, the Google button uses
+   *  Google Identity Services to sign the user in. When absent, clicking the
+   *  Google button shows a "Coming soon" toast (legacy behavior). */
+  googleClientId?: string;
   /** Callback when user signs in successfully */
   onSuccess?: (user: UserProfile) => void;
   /** Callback when modal closes */
   onClose?: () => void;
 }
 
-export type AuthModalMode = "login" | "signup" | "account";
+export type AuthModalMode = "login" | "signup" | "account" | "welcome";
 
 export function createAuthModal(options: AuthModalOptions): {
   el: HTMLElement;
@@ -33,8 +39,9 @@ export function createAuthModal(options: AuthModalOptions): {
   close: () => void;
   updateUser: (user: UserProfile | null) => void;
 } {
-  const { auth, showOAuth = true, demoEmail, onSuccess, onClose } = options;
+  const { auth, showOAuth = true, demoEmail, googleClientId, onSuccess, onClose } = options;
   let currentUser: UserProfile | null = null;
+  let pendingWelcomeName: string | null = null;
 
   const overlay = document.createElement("div");
   overlay.className = "mobius-auth-overlay";
@@ -108,10 +115,34 @@ export function createAuthModal(options: AuthModalOptions): {
         <p class="mobius-auth-user-info">${escapeHtml(currentUser?.greeting_name || currentUser?.email || currentUser?.display_name || "User")}</p>
         <a href="#" class="mobius-auth-prefs-link">Preferences</a>
         <button type="button" class="mobius-auth-btn mobius-auth-logout-btn">Sign out</button>
+        <div class="mobius-auth-confirm" data-role="logout-confirm" style="display:none">
+          <p class="mobius-auth-confirm-text">Sign out of Mobius?</p>
+          <div class="mobius-auth-confirm-actions">
+            <button type="button" class="mobius-auth-btn mobius-auth-btn-secondary" data-confirm="cancel">Cancel</button>
+            <button type="button" class="mobius-auth-btn mobius-auth-btn-danger" data-confirm="ok">Sign out</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const welcomeName = pendingWelcomeName || currentUser?.first_name || currentUser?.greeting_name || "";
+    const welcomeHtml = `
+      <button type="button" class="mobius-auth-close" aria-label="Close">&times;</button>
+      <h2 id="${titleId}" class="mobius-auth-title">Welcome to Mobius${welcomeName ? `, ${escapeHtml(welcomeName)}` : ""}</h2>
+      <div class="mobius-auth-form mobius-auth-welcome" data-mode="welcome">
+        <div class="mobius-auth-welcome-emoji" aria-hidden="true">👋</div>
+        <p class="mobius-auth-welcome-body">
+          Thanks for signing up. We sent a welcome email to confirm.
+          You can start using Mobius right now.
+        </p>
+        <button type="button" class="mobius-auth-btn mobius-auth-welcome-btn">Get started</button>
       </div>
     `;
 
-    panel.innerHTML = mode === "login" ? loginHtml : mode === "signup" ? signupHtml : accountHtml;
+    panel.innerHTML =
+      mode === "login" ? loginHtml :
+      mode === "signup" ? signupHtml :
+      mode === "welcome" ? welcomeHtml :
+      accountHtml;
 
     // Close button
     panel.querySelector(".mobius-auth-close")?.addEventListener("click", close);
@@ -141,6 +172,7 @@ export function createAuthModal(options: AuthModalOptions): {
         }
         const result = await auth.login(email, password);
         if (result.success && result.user) {
+          showToast(`Signed in as ${result.user.greeting_name || result.user.email || "user"}`, "success");
           onSuccess?.(result.user);
           close();
         } else {
@@ -159,13 +191,60 @@ export function createAuthModal(options: AuthModalOptions): {
         if (e.key === "Enter") void doLogin();
       });
       panel.querySelectorAll(".mobius-auth-oauth-btn, .mobius-auth-sso-btn").forEach((btn) => {
+        const provider = (btn as HTMLElement).getAttribute("data-provider") || "";
         btn.addEventListener("click", () => {
-          // OAuth/SSO coming soon - could emit event for host to handle
-          if (typeof (window as unknown as { showToast?: (s: string) => void }).showToast === "function") {
-            (window as unknown as { showToast: (s: string) => void }).showToast("Coming soon");
+          if (provider === "google" && googleClientId) {
+            void doGoogleSignIn(btn as HTMLButtonElement, errorEl);
+            return;
           }
+          showToast("Coming soon", "info");
         });
       });
+    }
+
+    async function doGoogleSignIn(btn: HTMLButtonElement, errorEl: HTMLElement | null) {
+      if (!googleClientId) return;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Connecting…";
+      if (errorEl) errorEl.style.display = "none";
+      try {
+        const idToken = await getGoogleIdToken(googleClientId);
+        const result = await auth.loginWithGoogle(idToken);
+        if (!result.success) {
+          if (errorEl) {
+            errorEl.textContent = result.error || "Google sign-in failed";
+            errorEl.style.display = "block";
+          } else {
+            showToast(result.error || "Google sign-in failed", "error");
+          }
+          return;
+        }
+        if (result.isNewUser) {
+          pendingWelcomeName = result.user?.first_name || result.user?.greeting_name || null;
+          showToast("Account created", "success");
+          if (result.user) onSuccess?.(result.user);
+          render("welcome");
+          return;
+        }
+        showToast(`Signed in as ${result.user?.greeting_name || result.user?.email || "user"}`, "success");
+        if (result.user) onSuccess?.(result.user);
+        close();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Google sign-in failed";
+        // User-dismissed prompts are expected — skip noisy errors.
+        if (!/dismissed|skipped|not displayed/i.test(msg)) {
+          if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = "block";
+          } else {
+            showToast(msg, "error");
+          }
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText || "Google";
+      }
     }
 
     if (mode === "signup") {
@@ -204,8 +283,13 @@ export function createAuthModal(options: AuthModalOptions): {
           firstNameInput?.value?.trim() || undefined
         );
         if (result.success && result.user) {
+          pendingWelcomeName = result.user.first_name
+            || firstNameInput?.value?.trim()
+            || result.user.greeting_name
+            || null;
+          showToast("Account created", "success");
           onSuccess?.(result.user);
-          close();
+          render("welcome");
         } else {
           if (errorEl) {
             errorEl.textContent = result.error || "Sign up failed";
@@ -223,10 +307,29 @@ export function createAuthModal(options: AuthModalOptions): {
       });
     }
 
+    if (mode === "welcome") {
+      panel.querySelector(".mobius-auth-welcome-btn")?.addEventListener("click", () => {
+        pendingWelcomeName = null;
+        close();
+      });
+    }
+
     if (mode === "account") {
-      panel.querySelector(".mobius-auth-logout-btn")?.addEventListener("click", async () => {
+      const logoutBtn = panel.querySelector(".mobius-auth-logout-btn") as HTMLButtonElement | null;
+      const confirmEl = panel.querySelector('[data-role="logout-confirm"]') as HTMLElement | null;
+      logoutBtn?.addEventListener("click", () => {
+        if (!confirmEl) return;
+        confirmEl.style.display = "block";
+        logoutBtn.disabled = true;
+      });
+      confirmEl?.querySelector('[data-confirm="cancel"]')?.addEventListener("click", () => {
+        confirmEl.style.display = "none";
+        if (logoutBtn) logoutBtn.disabled = false;
+      });
+      confirmEl?.querySelector('[data-confirm="ok"]')?.addEventListener("click", async () => {
         await auth.logout();
         updateUser(null);
+        showToast("Signed out", "info");
         close();
       });
       panel.querySelector(".mobius-auth-prefs-link")?.addEventListener("click", (e) => {
