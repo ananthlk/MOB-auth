@@ -125,6 +125,12 @@ export function createAuthModal(options: AuthModalOptions): {
       </div>
     `;
     const welcomeName = pendingWelcomeName || currentUser?.first_name || currentUser?.greeting_name || "";
+    // 2026-05-06: welcome panel now offers an explicit "Set up preferences"
+    // CTA (primary) alongside the existing "Get started" (secondary).
+    // Click on the primary button calls window.onOpenPreferences — same
+    // bridge the account-mode "Preferences" link uses. Hosts that don't
+    // wire that bridge silently get a no-op (the preferences button just
+    // closes the modal). 2026-05-06.
     const welcomeHtml = `
       <button type="button" class="mobius-auth-close" aria-label="Close">&times;</button>
       <h2 id="${titleId}" class="mobius-auth-title">Welcome to Mobius${welcomeName ? `, ${escapeHtml(welcomeName)}` : ""}</h2>
@@ -132,9 +138,11 @@ export function createAuthModal(options: AuthModalOptions): {
         <div class="mobius-auth-welcome-emoji" aria-hidden="true">👋</div>
         <p class="mobius-auth-welcome-body">
           Thanks for signing up. We sent a welcome email to confirm.
-          You can start using Mobius right now.
+          Take a minute to set up how you'd like to work — or jump in
+          right away.
         </p>
-        <button type="button" class="mobius-auth-btn mobius-auth-welcome-btn">Get started</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-welcome-prefs-btn">Set up preferences</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-btn-secondary mobius-auth-welcome-btn">Skip for now</button>
       </div>
     `;
 
@@ -308,6 +316,19 @@ export function createAuthModal(options: AuthModalOptions): {
     }
 
     if (mode === "welcome") {
+      // Primary CTA — "Set up preferences". Hands off to whichever
+      // preferences UI the host registered via window.onOpenPreferences.
+      // Closes this modal first so the preferences modal renders cleanly
+      // (one overlay at a time keeps focus + escape behavior sane).
+      panel.querySelector(".mobius-auth-welcome-prefs-btn")?.addEventListener("click", () => {
+        pendingWelcomeName = null;
+        close();
+        const fn = (window as unknown as { onOpenPreferences?: () => void }).onOpenPreferences;
+        if (typeof fn === "function") {
+          fn();
+        }
+      });
+      // Secondary — "Skip for now". Same as old behavior: just close.
       panel.querySelector(".mobius-auth-welcome-btn")?.addEventListener("click", () => {
         pendingWelcomeName = null;
         close();

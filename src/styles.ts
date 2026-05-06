@@ -131,10 +131,15 @@ export const AUTH_STYLES = `
 }
 .mobius-auth-confirm-actions { display: flex; gap: 8px; }
 .mobius-auth-confirm-actions .mobius-auth-btn { margin: 0; flex: 1; }
-.mobius-auth-confirm-actions .mobius-auth-btn-secondary {
+/* Generic secondary-button style — quiet alternate when a primary CTA
+ * sits next to it (welcome panel "Skip for now", confirm "Cancel"). */
+.mobius-auth-btn-secondary {
   background: white;
   color: var(--mobius-text-primary, #1a1d21);
   border: 1px solid var(--mobius-border, #e2e8f0);
+}
+.mobius-auth-btn-secondary:hover {
+  background: var(--mobius-bg-muted, #f8fafc);
 }
 .mobius-auth-confirm-actions .mobius-auth-btn-danger {
   background: var(--mobius-error, #dc2626);
