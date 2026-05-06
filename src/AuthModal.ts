@@ -139,10 +139,11 @@ export function createAuthModal(options: AuthModalOptions): {
       <div class="mobius-auth-form mobius-auth-welcome" data-mode="welcome">
         <div class="mobius-auth-welcome-emoji" aria-hidden="true">👋</div>
         <p class="mobius-auth-welcome-body">
-          Thanks for signing up. We sent a welcome email to confirm.
-          You can start using Mobius right now.
+          Thanks for signing up. Take a minute to set your preferences so
+          Mobius can tailor itself to how you work — or skip and do it later.
         </p>
-        <button type="button" class="mobius-auth-btn mobius-auth-welcome-btn">Get started</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-welcome-btn">Set up preferences</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-btn-secondary mobius-auth-welcome-skip-btn">Skip for now</button>
       </div>
     `;
 
@@ -329,6 +330,21 @@ export function createAuthModal(options: AuthModalOptions): {
 
     if (mode === "welcome") {
       panel.querySelector(".mobius-auth-welcome-btn")?.addEventListener("click", () => {
+        pendingWelcomeName = null;
+        close();
+        // If the host app has wired window.onOpenPreferences, send the new
+        // user there to fill in onboarding (preferred name, activities, etc.).
+        // Falls through silently if the host hasn't wired it.
+        const open = (window as unknown as { onOpenPreferences?: () => void }).onOpenPreferences;
+        if (typeof open === "function") {
+          try {
+            open();
+          } catch (e) {
+            console.error("[AuthModal] onOpenPreferences threw:", e);
+          }
+        }
+      });
+      panel.querySelector(".mobius-auth-welcome-skip-btn")?.addEventListener("click", () => {
         pendingWelcomeName = null;
         close();
       });
