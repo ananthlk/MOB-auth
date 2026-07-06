@@ -105,6 +105,14 @@ export function createAuthModal(options: AuthModalOptions): {
         <input type="password" class="mobius-auth-password" placeholder="Password (min 8 chars)" autocomplete="new-password" />
         <button type="button" class="mobius-auth-btn mobius-auth-signup-btn">Create account</button>
         <div class="mobius-auth-error" style="display:none"></div>
+        ${hasOAuth ? `
+          <div class="mobius-auth-divider"><span>or continue with</span></div>
+          <div class="mobius-auth-oauth">
+            <button type="button" class="mobius-auth-oauth-btn" data-provider="google">Google</button>
+            <button type="button" class="mobius-auth-oauth-btn" data-provider="microsoft">Microsoft</button>
+            <button type="button" class="mobius-auth-sso-btn">Enterprise SSO</button>
+          </div>
+        ` : ""}
         <p class="mobius-auth-switch">Already have an account? <button type="button" class="mobius-auth-switch-btn" data-to="login">Sign in</button></p>
       </div>
     `;
@@ -137,12 +145,11 @@ export function createAuthModal(options: AuthModalOptions): {
       <div class="mobius-auth-form mobius-auth-welcome" data-mode="welcome">
         <div class="mobius-auth-welcome-emoji" aria-hidden="true">👋</div>
         <p class="mobius-auth-welcome-body">
-          Thanks for signing up. We sent a welcome email to confirm.
-          Take a minute to set up how you'd like to work — or jump in
-          right away.
+          Thanks for signing up. Take a minute to set your preferences so
+          Mobius can tailor itself to how you work — or skip and do it later.
         </p>
-        <button type="button" class="mobius-auth-btn mobius-auth-welcome-prefs-btn">Set up preferences</button>
-        <button type="button" class="mobius-auth-btn mobius-auth-btn-secondary mobius-auth-welcome-btn">Skip for now</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-welcome-btn">Set up preferences</button>
+        <button type="button" class="mobius-auth-btn mobius-auth-btn-secondary mobius-auth-welcome-skip-btn">Skip for now</button>
       </div>
     `;
 
@@ -313,6 +320,18 @@ export function createAuthModal(options: AuthModalOptions): {
       passwordInput?.addEventListener("keydown", (e) => {
         if (e.key === "Enter") void doSignup();
       });
+      // Same OAuth handlers as on the sign-in form. The verify-only Google
+      // flow auto-creates first-time accounts, so this is the sign-up path too.
+      panel.querySelectorAll(".mobius-auth-oauth-btn, .mobius-auth-sso-btn").forEach((btn) => {
+        const provider = (btn as HTMLElement).getAttribute("data-provider") || "";
+        btn.addEventListener("click", () => {
+          if (provider === "google" && googleClientId) {
+            void doGoogleSignIn(btn as HTMLButtonElement, errorEl);
+            return;
+          }
+          showToast("Coming soon", "info");
+        });
+      });
     }
 
     if (mode === "welcome") {
@@ -330,6 +349,21 @@ export function createAuthModal(options: AuthModalOptions): {
       });
       // Secondary — "Skip for now". Same as old behavior: just close.
       panel.querySelector(".mobius-auth-welcome-btn")?.addEventListener("click", () => {
+        pendingWelcomeName = null;
+        close();
+        // If the host app has wired window.onOpenPreferences, send the new
+        // user there to fill in onboarding (preferred name, activities, etc.).
+        // Falls through silently if the host hasn't wired it.
+        const open = (window as unknown as { onOpenPreferences?: () => void }).onOpenPreferences;
+        if (typeof open === "function") {
+          try {
+            open();
+          } catch (e) {
+            console.error("[AuthModal] onOpenPreferences threw:", e);
+          }
+        }
+      });
+      panel.querySelector(".mobius-auth-welcome-skip-btn")?.addEventListener("click", () => {
         pendingWelcomeName = null;
         close();
       });
