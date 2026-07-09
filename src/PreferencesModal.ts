@@ -32,6 +32,7 @@ function prefsFromProfile(profile: {
   activities?: string[];
   tone?: "professional" | "friendly" | "concise";
   greeting_enabled?: boolean;
+  ai_experience_level?: "beginner" | "regular" | "expert";
   autonomy_routine_tasks?: "automatic" | "confirm_first" | "manual";
   autonomy_sensitive_tasks?: "automatic" | "confirm_first" | "manual";
 }): UserPreferences {
@@ -41,8 +42,12 @@ function prefsFromProfile(profile: {
     activities: profile.activities ?? [],
     tone: profile.tone ?? "professional",
     greeting_enabled: profile.greeting_enabled !== false,
+    ai_experience_level: profile.ai_experience_level ?? "beginner",
+    // Fallbacks must match the backend column defaults (confirm_first) —
+    // a mismatched fallback silently rewrites the stored preference the
+    // next time the user saves without touching this control.
     autonomy_routine_tasks: profile.autonomy_routine_tasks ?? "confirm_first",
-    autonomy_sensitive_tasks: profile.autonomy_sensitive_tasks ?? "manual",
+    autonomy_sensitive_tasks: profile.autonomy_sensitive_tasks ?? "confirm_first",
   };
 }
 
@@ -107,6 +112,7 @@ export function createPreferencesModal(
 
     const modal = document.createElement("div");
     modal.className = "mobius-prefs-modal";
+    modal.dataset.tourId = "modal-preferences";
     let activeTab = "profile";
 
     function render(): void {
@@ -142,7 +148,8 @@ export function createPreferencesModal(
     function renderTabContent(): string {
       const tone = prefs.tone ?? "professional";
       const routine = prefs.autonomy_routine_tasks ?? "confirm_first";
-      const sensitive = prefs.autonomy_sensitive_tasks ?? "manual";
+      const sensitive = prefs.autonomy_sensitive_tasks ?? "confirm_first";
+      const experience = prefs.ai_experience_level ?? "beginner";
       const greeting = prefs.greeting_enabled !== false;
       switch (activeTab) {
         case "profile":
@@ -212,7 +219,24 @@ export function createPreferencesModal(
               </label>
               <label class="mobius-prefs-option ${sensitive === "manual" ? "selected" : ""}">
                 <input type="radio" name="sensitive" value="manual" ${sensitive === "manual" ? "checked" : ""} />
-                <span>Never act without my approval</span>
+                <span>Just guide me, I'll do it myself</span>
+              </label>
+            </div>
+          </div>
+          <div class="mobius-prefs-section">
+            <label class="mobius-prefs-label">How familiar are you with AI assistants?</label>
+            <div class="mobius-prefs-options">
+              <label class="mobius-prefs-option ${experience === "beginner" ? "selected" : ""}">
+                <input type="radio" name="experience" value="beginner" ${experience === "beginner" ? "checked" : ""} />
+                <span>New to this — explain as you go</span>
+              </label>
+              <label class="mobius-prefs-option ${experience === "regular" ? "selected" : ""}">
+                <input type="radio" name="experience" value="regular" ${experience === "regular" ? "checked" : ""} />
+                <span>Comfortable — skip the basics</span>
+              </label>
+              <label class="mobius-prefs-option ${experience === "expert" ? "selected" : ""}">
+                <input type="radio" name="experience" value="expert" ${experience === "expert" ? "checked" : ""} />
+                <span>Expert — just the tradeoffs</span>
               </label>
             </div>
           </div>
@@ -286,6 +310,7 @@ export function createPreferencesModal(
               activities: selectedActivities,
               tone: prefs.tone,
               greeting_enabled: prefs.greeting_enabled,
+              ai_experience_level: prefs.ai_experience_level,
               autonomy_routine_tasks: prefs.autonomy_routine_tasks,
               autonomy_sensitive_tasks: prefs.autonomy_sensitive_tasks,
             }),
@@ -343,12 +368,13 @@ export function createPreferencesModal(
         });
       });
 
-      ["routine", "sensitive", "tone"].forEach((name) => {
+      ["routine", "sensitive", "tone", "experience"].forEach((name) => {
         modal.querySelectorAll(`input[name="${name}"]`).forEach((r) => {
           r.addEventListener("change", (e) => {
             const value = (e.target as HTMLInputElement).value;
             if (name === "routine") prefs.autonomy_routine_tasks = value as UserPreferences["autonomy_routine_tasks"];
             if (name === "sensitive") prefs.autonomy_sensitive_tasks = value as UserPreferences["autonomy_sensitive_tasks"];
+            if (name === "experience") prefs.ai_experience_level = value as UserPreferences["ai_experience_level"];
             if (name === "tone") prefs.tone = value as UserPreferences["tone"];
             updateRadioStyles(name);
           });

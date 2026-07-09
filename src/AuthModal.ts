@@ -46,6 +46,7 @@ export function createAuthModal(options: AuthModalOptions): {
   const overlay = document.createElement("div");
   overlay.className = "mobius-auth-overlay";
   overlay.setAttribute("aria-hidden", "true");
+  overlay.dataset.tourId = "modal-auth";
 
   const panel = document.createElement("div");
   panel.className = "mobius-auth-panel";
