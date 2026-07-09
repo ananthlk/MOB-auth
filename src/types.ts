@@ -33,6 +33,7 @@ export interface UserPreferences {
   activities?: string[];
   tone?: "professional" | "friendly" | "concise";
   greeting_enabled?: boolean;
+  ai_experience_level?: "beginner" | "regular" | "expert";
   autonomy_routine_tasks?: "automatic" | "confirm_first" | "manual";
   autonomy_sensitive_tasks?: "automatic" | "confirm_first" | "manual";
 }
