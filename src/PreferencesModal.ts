@@ -107,6 +107,7 @@ export function createPreferencesModal(
 
     const modal = document.createElement("div");
     modal.className = "mobius-prefs-modal";
+    modal.dataset.tourId = "modal-preferences";
     let activeTab = "profile";
 
     function render(): void {
