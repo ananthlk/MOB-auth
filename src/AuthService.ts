@@ -29,8 +29,12 @@ function normalizeUser(data: Record<string, unknown>): UserProfile {
     activities: activities.map((a) => a.activity_code || "").filter(Boolean),
     tone: (pref.tone as UserProfile["tone"]) || "professional",
     greeting_enabled: pref.greeting_enabled !== false,
+    ai_experience_level: (pref.ai_experience_level as UserProfile["ai_experience_level"]) || "beginner",
+    // Defaults must mirror the backend column defaults (confirm_first) or
+    // the modal shows — and then saves — a preference the user never chose.
     autonomy_routine_tasks: (pref.autonomy_routine_tasks as UserProfile["autonomy_routine_tasks"]) || "confirm_first",
-    autonomy_sensitive_tasks: (pref.autonomy_sensitive_tasks as UserProfile["autonomy_sensitive_tasks"]) || "manual",
+    autonomy_sensitive_tasks: (pref.autonomy_sensitive_tasks as UserProfile["autonomy_sensitive_tasks"]) || "confirm_first",
+    org_memberships: (u.org_memberships as UserProfile["org_memberships"]) || [],
   };
 }
 

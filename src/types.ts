@@ -23,8 +23,10 @@ export interface UserProfile {
   activities: string[];
   tone: "professional" | "friendly" | "concise";
   greeting_enabled: boolean;
+  ai_experience_level?: "beginner" | "regular" | "expert";
   autonomy_routine_tasks?: "automatic" | "confirm_first" | "manual";
   autonomy_sensitive_tasks?: "automatic" | "confirm_first" | "manual";
+  org_memberships?: { org_slug: string; display_name: string; roles: string[] }[];
 }
 
 export interface UserPreferences {
@@ -36,4 +38,6 @@ export interface UserPreferences {
   ai_experience_level?: "beginner" | "regular" | "expert";
   autonomy_routine_tasks?: "automatic" | "confirm_first" | "manual";
   autonomy_sensitive_tasks?: "automatic" | "confirm_first" | "manual";
+  /** Free-text org name or canonical slug; server resolves against the master org registry */
+  organization?: string;
 }
